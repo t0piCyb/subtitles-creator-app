@@ -114,8 +114,6 @@ export async function burnSubtitles(
   const filterAssPath = escapeFilter(assPath);
   const filterFontsDir = escapeFilter(fontsDir);
 
-  const cmd = `-i ${inputPath} -vf ass=${filterAssPath}:fontsdir=${filterFontsDir} -c:v mpeg4 -q:v 5 -c:a aac -b:a 128k -movflags +faststart -y ${outPath}`;
-
   // Enable statistics callback for progress
   const statisticsCallback = (statistics: any) => {
     const time = statistics.getTime();
@@ -127,14 +125,31 @@ export async function burnSubtitles(
 
   FFmpegKitConfig.enableStatisticsCallback(statisticsCallback);
 
-  const session = await FFmpegKit.execute(cmd);
-  const returnCode = await session.getReturnCode();
+  // Try encoders in order: H.264 hardware → H.264 software → mpeg4
+  const encoders = [
+    { codec: 'h264_mediacodec', opts: '-b:v 4M -pix_fmt yuv420p' },
+    { codec: 'libx264', opts: '-preset fast -crf 23 -pix_fmt yuv420p' },
+    { codec: 'mpeg4', opts: '-q:v 5 -pix_fmt yuv420p' },
+  ];
+
+  let lastSession: any = null;
+  let success = false;
+
+  for (const enc of encoders) {
+    const cmd = `-i ${inputPath} -vf ass=${filterAssPath}:fontsdir=${filterFontsDir} -c:v ${enc.codec} ${enc.opts} -c:a aac -b:a 128k -movflags +faststart -y ${outPath}`;
+    lastSession = await FFmpegKit.execute(cmd);
+    const rc = await lastSession.getReturnCode();
+    if (ReturnCode.isSuccess(rc)) {
+      success = true;
+      break;
+    }
+  }
 
   // Clean up ASS file
   await FileSystem.deleteAsync(assPath, { idempotent: true });
 
-  if (!ReturnCode.isSuccess(returnCode)) {
-    const logs = await session.getLogsAsString();
+  if (!success) {
+    const logs = await lastSession?.getLogsAsString();
     throw new Error(`Subtitle burn failed: ${logs?.slice(-300)}`);
   }
 
