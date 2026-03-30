@@ -1,0 +1,13 @@
+diff --git a/node_modules/ffmpeg-kit-react-native/android/build.gradle b/node_modules/ffmpeg-kit-react-native/android/build.gradle
+index 2909280..3e8e6c1 100644
+--- a/node_modules/ffmpeg-kit-react-native/android/build.gradle
++++ b/node_modules/ffmpeg-kit-react-native/android/build.gradle
+@@ -125,5 +125,7 @@ repositories {
+ 
+ dependencies {
+   api 'com.facebook.react:react-native:+'
+-  implementation 'com.arthenica:ffmpeg-kit-' + safePackageName(safeExtGet('ffmpegKitPackage', 'https')) + ':' + safePackageVersion(safeExtGet('ffmpegKitPackage', 'https'))
++  // Original arthenica artifacts removed from Maven Central (April 2025)
++  // Using moizhassankh community fork with 16KB page size support
++  implementation 'com.moizhassan.ffmpeg:ffmpeg-kit-16kb:6.1.1'
+ }

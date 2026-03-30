@@ -1,16 +1,16 @@
 {
   "expo": {
-    "name": "subtitles-creator-app",
+    "name": "Sous-titres Creator",
     "slug": "subtitles-creator-app",
     "version": "1.0.0",
     "orientation": "portrait",
     "icon": "./assets/icon.png",
-    "userInterfaceStyle": "light",
+    "userInterfaceStyle": "dark",
     "newArchEnabled": true,
     "splash": {
       "image": "./assets/splash-icon.png",
       "resizeMode": "contain",
-      "backgroundColor": "#ffffff"
+      "backgroundColor": "#0f0f0f"
     },
     "ios": {
       "supportsTablet": true
@@ -18,13 +18,44 @@
     "android": {
       "adaptiveIcon": {
         "foregroundImage": "./assets/adaptive-icon.png",
-        "backgroundColor": "#ffffff"
+        "backgroundColor": "#0f0f0f"
       },
       "edgeToEdgeEnabled": true,
-      "predictiveBackGestureEnabled": false
+      "permissions": [
+        "android.permission.INTERNET",
+        "android.permission.READ_EXTERNAL_STORAGE",
+        "android.permission.WRITE_EXTERNAL_STORAGE",
+        "android.permission.READ_MEDIA_VIDEO",
+        "android.permission.READ_MEDIA_VISUAL_USER_SELECTED",
+        "android.permission.ACCESS_MEDIA_LOCATION",
+        "android.permission.READ_MEDIA_IMAGES",
+        "android.permission.READ_MEDIA_AUDIO",
+        "android.permission.RECORD_AUDIO"
+      ],
+      "package": "com.t0pi.subtitlescreatorapp"
     },
-    "web": {
-      "favicon": "./assets/favicon.png"
+    "plugins": [
+      "expo-font",
+      "expo-file-system",
+      [
+        "expo-media-library",
+        {
+          "photosPermission": "Accès à la galerie pour sauvegarder les vidéos sous-titrées.",
+          "savePhotosPermission": "Enregistrer les vidéos sous-titrées dans votre galerie.",
+          "isAccessMediaLocationEnabled": true
+        }
+      ],
+      [
+        "expo-image-picker",
+        {
+          "photosPermission": "Accès à vos vidéos pour les sous-titrer."
+        }
+      ]
+    ],
+    "extra": {
+      "eas": {
+        "projectId": "8467af65-ec8b-4802-800e-8b62d8fa66e9"
+      }
     }
   }
 }

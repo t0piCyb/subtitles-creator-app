@@ -1,0 +1,143 @@
+import { FFmpegKit, FFmpegKitConfig, FFprobeKit, ReturnCode } from 'ffmpeg-kit-react-native';
+import * as FileSystem from 'expo-file-system/legacy';
+import { Subtitle } from '../types';
+import { generateAss } from '../utils/assGenerator';
+import { getAssPath, getOutputPath, getFontsDir } from './fileService';
+
+/**
+ * Extract audio from video as 16kHz mono WAV for Whisper.
+ */
+export async function extractAudio(
+  videoPath: string,
+  audioPath: string
+): Promise<void> {
+  const vPath = videoPath.replace(/^file:\/\//, '');
+  const aPath = audioPath.replace(/^file:\/\//, '');
+  const cmd = `-i ${vPath} -ar 16000 -ac 1 -c:a pcm_s16le -y ${aPath}`;
+  const session = await FFmpegKit.execute(cmd);
+  const returnCode = await session.getReturnCode();
+  if (!ReturnCode.isSuccess(returnCode)) {
+    const logs = await session.getLogsAsString();
+    throw new Error(`Audio extraction failed: ${logs?.slice(-200)}`);
+  }
+}
+
+/**
+ * Get video dimensions using FFprobe.
+ */
+export async function getVideoDimensions(
+  videoPath: string
+): Promise<{ width: number; height: number; durationMs: number }> {
+  const session = await FFprobeKit.getMediaInformation(videoPath);
+  const info = session.getMediaInformation();
+
+  if (info) {
+    const streams = info.getStreams();
+    const videoStream = streams?.find(
+      (s: any) => s.getType() === 'video'
+    );
+    if (videoStream) {
+      const width = Number(videoStream.getWidth()) || 1920;
+      const height = Number(videoStream.getHeight()) || 1080;
+      const durationStr = String(info.getDuration() ?? '');
+      const durationMs = durationStr ? parseFloat(durationStr) * 1000 : 60000;
+      return { width, height, durationMs };
+    }
+  }
+
+  return { width: 1920, height: 1080, durationMs: 60000 };
+}
+
+/**
+ * Copy bundled Montserrat font to accessible directory for FFmpeg libass.
+ */
+async function ensureFont(): Promise<string> {
+  const fontsDir = await getFontsDir();
+  const fontDest = `${fontsDir}Montserrat-Bold.ttf`;
+  const info = await FileSystem.getInfoAsync(fontDest);
+
+  if (!info.exists) {
+    try {
+      const { Asset } = require('expo-asset');
+      const asset = Asset.fromModule(require('../../assets/fonts/Montserrat-Bold.ttf'));
+      await asset.downloadAsync();
+      if (asset.localUri) {
+        await FileSystem.copyAsync({ from: asset.localUri, to: fontDest });
+      }
+    } catch {
+      console.warn('Could not copy font from assets');
+    }
+  }
+
+  return fontsDir;
+}
+
+/**
+ * Burn subtitles into video using FFmpeg with ASS filter.
+ */
+export async function burnSubtitles(
+  videoPath: string,
+  subtitles: Subtitle[],
+  fontSize: number,
+  onProgress: (progress: number) => void
+): Promise<string> {
+  // Get video dimensions
+  const { width, height, durationMs } = await getVideoDimensions(videoPath);
+
+  // Generate ASS file
+  const assContent = generateAss(subtitles, width, height, fontSize);
+  const assPath = getAssPath();
+  await FileSystem.writeAsStringAsync(assPath, assContent, {
+    encoding: FileSystem.EncodingType.UTF8,
+  });
+
+  // Ensure font is available
+  const fontsDir = await ensureFont();
+
+  // Set font directory for libass
+  try {
+    await FFmpegKitConfig.setFontDirectoryList([fontsDir]);
+  } catch {
+    // Some versions don't support this
+  }
+
+  const outputPath = getOutputPath();
+
+  // Strip file:// prefix — FFmpeg needs raw filesystem paths
+  const toPath = (uri: string) => uri.replace(/^file:\/\//, '');
+
+  // Escape special chars for FFmpeg ass filter (colons have special meaning)
+  const escapeFilter = (p: string) => toPath(p).replace(/:/g, '\\:');
+
+  const inputPath = toPath(videoPath);
+  const outPath = toPath(outputPath);
+  const filterAssPath = escapeFilter(assPath);
+  const filterFontsDir = escapeFilter(fontsDir);
+
+  const cmd = `-i ${inputPath} -vf ass=${filterAssPath}:fontsdir=${filterFontsDir} -c:v mpeg4 -q:v 5 -c:a aac -b:a 128k -movflags +faststart -y ${outPath}`;
+
+  // Enable statistics callback for progress
+  const statisticsCallback = (statistics: any) => {
+    const time = statistics.getTime();
+    if (time > 0 && durationMs > 0) {
+      const progress = Math.min(99, Math.round((time / durationMs) * 100));
+      onProgress(progress);
+    }
+  };
+
+  FFmpegKitConfig.enableStatisticsCallback(statisticsCallback);
+
+  const session = await FFmpegKit.execute(cmd);
+  const returnCode = await session.getReturnCode();
+
+  // Clean up ASS file
+  await FileSystem.deleteAsync(assPath, { idempotent: true });
+
+  if (!ReturnCode.isSuccess(returnCode)) {
+    const logs = await session.getLogsAsString();
+    throw new Error(`Subtitle burn failed: ${logs?.slice(-300)}`);
+  }
+
+  onProgress(100);
+  return outputPath;
+}
