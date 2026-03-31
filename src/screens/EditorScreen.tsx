@@ -1,5 +1,5 @@
 import React, { useCallback, useRef, useState } from 'react';
-import { View, TouchableOpacity, Text, StyleSheet, KeyboardAvoidingView, Platform } from 'react-native';
+import { View, TouchableOpacity, Text, StyleSheet, KeyboardAvoidingView, Platform, Switch } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { colors } from '../constants/theme';
 import { useProjectStore } from '../store/useProjectStore';
@@ -14,6 +14,7 @@ export function EditorScreen({ navigation }: any) {
   const fontSize = useProjectStore((s) => s.fontSize);
   const updateSubtitle = useProjectStore((s) => s.updateSubtitle);
   const deleteSubtitle = useProjectStore((s) => s.deleteSubtitle);
+  const mergeWithNext = useProjectStore((s) => s.mergeWithNext);
   const addSubtitle = useProjectStore((s) => s.addSubtitle);
   const resetSubtitles = useProjectStore((s) => s.resetSubtitles);
   const setFontSize = useProjectStore((s) => s.setFontSize);
@@ -21,6 +22,7 @@ export function EditorScreen({ navigation }: any) {
   const videoRef = useRef<VideoPreviewRef>(null);
   const [activeIndex, setActiveIndex] = useState(-1);
   const [currentTime, setCurrentTime] = useState(0);
+  const [highQuality, setHighQuality] = useState(false);
 
   const handleTimeUpdate = useCallback(
     (time: number) => {
@@ -49,6 +51,13 @@ export function EditorScreen({ navigation }: any) {
     [deleteSubtitle]
   );
 
+  const handleMerge = useCallback(
+    (index: number) => {
+      mergeWithNext(index);
+    },
+    [mergeWithNext]
+  );
+
   if (!videoPath) return null;
 
   return (
@@ -63,8 +72,17 @@ export function EditorScreen({ navigation }: any) {
         onTimeUpdate={handleTimeUpdate}
       />
 
-      {/* Font Size */}
+      {/* Font Size + Quality */}
       <FontSizeSlider value={fontSize} onChange={setFontSize} />
+      <View style={styles.qualityRow}>
+        <Text style={styles.qualityLabel}>Haute qualité (plus lent)</Text>
+        <Switch
+          value={highQuality}
+          onValueChange={setHighQuality}
+          trackColor={{ false: colors.surfaceLight, true: colors.accent }}
+          thumbColor={highQuality ? colors.accentLight : colors.textSecondary}
+        />
+      </View>
 
       {/* Subtitle List */}
       <SubtitleList
@@ -72,6 +90,7 @@ export function EditorScreen({ navigation }: any) {
         activeIndex={activeIndex}
         onUpdate={handleUpdate}
         onDelete={handleDelete}
+        onMerge={handleMerge}
         onSeek={handleSeek}
       />
 
@@ -85,7 +104,7 @@ export function EditorScreen({ navigation }: any) {
         </TouchableOpacity>
         <TouchableOpacity
           style={[styles.toolBtn, styles.generateBtn]}
-          onPress={() => navigation.navigate('Export')}
+          onPress={() => navigation.navigate('Export', { highQuality })}
         >
           <Text style={styles.generateBtnText}>Générer</Text>
         </TouchableOpacity>
@@ -114,4 +133,12 @@ const styles = StyleSheet.create({
   toolBtnText: { color: colors.text, fontSize: 14, fontWeight: '500' },
   generateBtn: { backgroundColor: colors.accent, flex: 2 },
   generateBtnText: { color: '#fff', fontSize: 16, fontWeight: '700' },
+  qualityRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    paddingHorizontal: 16,
+    paddingVertical: 4,
+  },
+  qualityLabel: { color: colors.textSecondary, fontSize: 13 },
 });

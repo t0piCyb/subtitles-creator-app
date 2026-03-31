@@ -79,6 +79,7 @@ export async function burnSubtitles(
   videoPath: string,
   subtitles: Subtitle[],
   fontSize: number,
+  highQuality: boolean,
   onProgress: (progress: number) => void
 ): Promise<string> {
   // Get video dimensions
@@ -126,10 +127,12 @@ export async function burnSubtitles(
   FFmpegKitConfig.enableStatisticsCallback(statisticsCallback);
 
   // Try encoders in order: H.264 hardware → H.264 software → mpeg4
+  const bitrate = highQuality ? '10M' : '4M';
+  const mpeg4Quality = highQuality ? '2' : '5';
   const encoders = [
-    { codec: 'h264_mediacodec', opts: '-b:v 4M -pix_fmt yuv420p' },
-    { codec: 'libx264', opts: '-preset fast -crf 23 -pix_fmt yuv420p' },
-    { codec: 'mpeg4', opts: '-q:v 5 -pix_fmt yuv420p' },
+    { codec: 'h264_mediacodec', opts: `-b:v ${bitrate} -pix_fmt yuv420p` },
+    { codec: 'libx264', opts: `-preset fast -crf ${highQuality ? '18' : '23'} -pix_fmt yuv420p` },
+    { codec: 'mpeg4', opts: `-q:v ${mpeg4Quality} -pix_fmt yuv420p` },
   ];
 
   let lastSession: any = null;

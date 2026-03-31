@@ -9,10 +9,11 @@ interface Props {
   activeIndex: number;
   onUpdate: (index: number, field: keyof Subtitle, value: string | number) => void;
   onDelete: (index: number) => void;
+  onMerge: (index: number) => void;
   onSeek: (time: number) => void;
 }
 
-export function SubtitleList({ subtitles, activeIndex, onUpdate, onDelete, onSeek }: Props) {
+export function SubtitleList({ subtitles, activeIndex, onUpdate, onDelete, onMerge, onSeek }: Props) {
   const flatListRef = useRef<FlatList>(null);
 
   const renderItem = useCallback(
@@ -21,12 +22,14 @@ export function SubtitleList({ subtitles, activeIndex, onUpdate, onDelete, onSee
         subtitle={item}
         index={index}
         isActive={index === activeIndex}
+        isLast={index === subtitles.length - 1}
         onUpdate={onUpdate}
         onDelete={onDelete}
+        onMerge={onMerge}
         onPress={onSeek}
       />
     ),
-    [activeIndex, onUpdate, onDelete, onSeek]
+    [activeIndex, subtitles.length, onUpdate, onDelete, onMerge, onSeek]
   );
 
   const keyExtractor = useCallback((_: Subtitle, index: number) => `sub-${index}`, []);

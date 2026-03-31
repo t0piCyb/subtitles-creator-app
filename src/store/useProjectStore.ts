@@ -14,6 +14,7 @@ interface ProjectState {
   setOriginalSubtitles: (subs: Subtitle[]) => void;
   updateSubtitle: (index: number, field: keyof Subtitle, value: string | number) => void;
   deleteSubtitle: (index: number) => void;
+  mergeWithNext: (index: number) => void;
   addSubtitle: (atTime: number) => void;
   resetSubtitles: () => void;
   setFontSize: (size: number) => void;
@@ -47,6 +48,21 @@ export const useProjectStore = create<ProjectState>((set, get) => ({
     set((state) => ({
       subtitles: state.subtitles.filter((_, i) => i !== index),
     })),
+
+  mergeWithNext: (index) =>
+    set((state) => {
+      if (index >= state.subtitles.length - 1) return state;
+      const updated = [...state.subtitles];
+      const current = updated[index];
+      const next = updated[index + 1];
+      updated[index] = {
+        text: `${current.text} ${next.text}`,
+        start: current.start,
+        end: next.end,
+      };
+      updated.splice(index + 1, 1);
+      return { subtitles: updated };
+    }),
 
   addSubtitle: (atTime) =>
     set((state) => {

@@ -8,8 +8,10 @@ interface Props {
   subtitle: Subtitle;
   index: number;
   isActive: boolean;
+  isLast: boolean;
   onUpdate: (index: number, field: keyof Subtitle, value: string | number) => void;
   onDelete: (index: number) => void;
+  onMerge: (index: number) => void;
   onPress: (time: number) => void;
 }
 
@@ -17,8 +19,10 @@ export const SubtitleItem = memo(function SubtitleItem({
   subtitle,
   index,
   isActive,
+  isLast,
   onUpdate,
   onDelete,
+  onMerge,
   onPress,
 }: Props) {
   const [startText, setStartText] = useState(formatDisplayTime(subtitle.start));
@@ -72,6 +76,11 @@ export const SubtitleItem = memo(function SubtitleItem({
         keyboardType="numbers-and-punctuation"
         selectTextOnFocus
       />
+      {!isLast && (
+        <TouchableOpacity style={styles.mergeBtn} onPress={() => onMerge(index)}>
+          <Text style={styles.mergeBtnText}>+</Text>
+        </TouchableOpacity>
+      )}
       <TouchableOpacity style={styles.deleteBtn} onPress={() => onDelete(index)}>
         <Text style={styles.deleteText}>X</Text>
       </TouchableOpacity>
@@ -112,10 +121,19 @@ const styles = StyleSheet.create({
     backgroundColor: colors.background,
     borderRadius: 4,
   },
+  mergeBtn: {
+    width: 24,
+    height: 24,
+    borderRadius: 12,
+    backgroundColor: colors.accent,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  mergeBtnText: { color: '#fff', fontSize: 14, fontWeight: '700' },
   deleteBtn: {
-    width: 28,
-    height: 28,
-    borderRadius: 14,
+    width: 24,
+    height: 24,
+    borderRadius: 12,
     backgroundColor: colors.danger,
     alignItems: 'center',
     justifyContent: 'center',

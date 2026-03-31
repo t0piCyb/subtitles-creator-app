@@ -8,7 +8,8 @@ import { ProgressBar } from '../components/ProgressBar';
 import { useProjectStore } from '../store/useProjectStore';
 import { burnSubtitles } from '../services/ffmpegService';
 
-export function ExportScreen({ navigation }: any) {
+export function ExportScreen({ navigation, route }: any) {
+  const highQuality: boolean = route?.params?.highQuality ?? false;
   const [progress, setProgress] = useState(0);
   const [status, setStatus] = useState('Génération en cours...');
   const [outputPath, setOutputPath] = useState<string | null>(null);
@@ -31,7 +32,7 @@ export function ExportScreen({ navigation }: any) {
         await activateKeepAwakeAsync();
         setStatus('Incrustation des sous-titres...');
 
-        const output = await burnSubtitles(videoPath, subtitles, fontSize, (p) => {
+        const output = await burnSubtitles(videoPath, subtitles, fontSize, highQuality, (p) => {
           if (!cancelled) setProgress(p);
         });
 

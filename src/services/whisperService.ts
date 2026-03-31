@@ -101,8 +101,18 @@ export async function transcribeAudio(
     }
   }
 
+  // Filter out punctuation-only entries
+  const cleaned = words.filter((w) => /\w/.test(w.text));
+
+  // Clamp each word's end to not exceed next word's start (prevents bleed into silences)
+  for (let i = 0; i < cleaned.length - 1; i++) {
+    if (cleaned[i].end > cleaned[i + 1].start) {
+      cleaned[i].end = cleaned[i + 1].start;
+    }
+  }
+
   // Merge French compound words (l'homme, qu'est-ce, etc.)
-  const merged = mergeCompoundWords(words);
+  const merged = mergeCompoundWords(cleaned);
 
   // Release context to free memory before FFmpeg
   await releaseWhisperContext();
