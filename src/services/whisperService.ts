@@ -1,15 +1,12 @@
 import { initWhisper, WhisperContext } from 'whisper.rn';
 import { getModelPath } from './modelService';
 import { Subtitle } from '../types';
-import { mergeCompoundWords } from '../utils/compoundWords';
 
 let whisperContext: WhisperContext | null = null;
 
-export async function getWhisperContext(): Promise<WhisperContext> {
+async function getWhisperContext(): Promise<WhisperContext> {
   if (whisperContext) return whisperContext;
-
-  const modelPath = getModelPath();
-  whisperContext = await initWhisper({ filePath: modelPath });
+  whisperContext = await initWhisper({ filePath: getModelPath() });
   return whisperContext;
 }
 
@@ -26,33 +23,29 @@ export interface TranscribeResult {
 }
 
 /**
- * Split a segment into individual words with interpolated timestamps.
+ * Split a whisper segment into individual words.
+ * Time distributed proportionally to word length.
+ * Words stay within the segment's t0-t1 (no bleed into silences).
  */
-function splitSegmentIntoWords(
-  text: string,
-  start: number,
-  end: number
-): Subtitle[] {
-  const rawWords = text.split(/\s+/).filter((w) => w.length > 0);
+function splitSegmentIntoWords(text: string, segStart: number, segEnd: number): Subtitle[] {
+  const rawWords = text.split(/\s+/).filter((w) => w.length > 0 && /\w/.test(w));
   if (rawWords.length === 0) return [];
-  if (rawWords.length === 1) {
-    return [{ text: rawWords[0], start, end }];
+  if (rawWords.length === 1) return [{ text: rawWords[0], start: segStart, end: segEnd }];
+
+  const totalChars = rawWords.reduce((sum, w) => sum + w.length, 0);
+  const duration = segEnd - segStart;
+  const words: Subtitle[] = [];
+  let cursor = segStart;
+
+  for (let i = 0; i < rawWords.length; i++) {
+    const proportion = rawWords[i].length / totalChars;
+    const wordEnd = i === rawWords.length - 1 ? segEnd : cursor + duration * proportion;
+    words.push({ text: rawWords[i], start: cursor, end: wordEnd });
+    cursor = wordEnd;
   }
-
-  const duration = end - start;
-  const wordDuration = duration / rawWords.length;
-
-  return rawWords.map((word, i) => ({
-    text: word,
-    start: start + i * wordDuration,
-    end: start + (i + 1) * wordDuration,
-  }));
+  return words;
 }
 
-/**
- * Transcribe a WAV audio file using whisper.rn.
- * The audio must be 16kHz mono WAV (extract from video with FFmpeg first).
- */
 export async function transcribeAudio(
   audioPath: string,
   onProgress: (progress: number) => void
@@ -60,65 +53,28 @@ export async function transcribeAudio(
   const ctx = await getWhisperContext();
 
   const { promise } = ctx.transcribe(audioPath, {
-    language: 'auto',
+    language: 'fr',
     tokenTimestamps: true,
-    // maxLen limits segment length in chars — keeps segments short (~1-2 words)
-    // so interpolated timestamps are accurate even without word-level data
-    maxLen: 15,
-    onProgress: (progress: number) => {
-      onProgress(Math.round(progress));
-    },
+    onProgress: (p: number) => onProgress(Math.round(p)),
   });
 
   const result = await promise;
 
-  const words: Subtitle[] = [];
+  const subtitles: Subtitle[] = [];
   if (result.segments) {
-    for (const segment of result.segments) {
-      const segStart = segment.t0 / 100;
-      const segEnd = segment.t1 / 100;
-
-      // Try word-level timestamps first
-      if (segment.words && segment.words.length > 0) {
-        for (const word of segment.words) {
-          const text = word.word?.trim();
-          if (text) {
-            words.push({
-              text,
-              start: word.t0 / 100,
-              end: word.t1 / 100,
-            });
-          }
-        }
-      } else {
-        // Fallback: split segment text into words with interpolated timing
-        const segText = segment.text?.trim();
-        if (segText) {
-          const splitWords = splitSegmentIntoWords(segText, segStart, segEnd);
-          words.push(...splitWords);
-        }
-      }
+    for (const seg of result.segments) {
+      const text = seg.text?.trim();
+      if (!text || !/\w/.test(text)) continue;
+      const segStart = seg.t0 / 100;
+      const segEnd = seg.t1 / 100;
+      subtitles.push(...splitSegmentIntoWords(text, segStart, segEnd));
     }
   }
 
-  // Filter out punctuation-only entries
-  const cleaned = words.filter((w) => /\w/.test(w.text));
-
-  // Clamp each word's end to not exceed next word's start (prevents bleed into silences)
-  for (let i = 0; i < cleaned.length - 1; i++) {
-    if (cleaned[i].end > cleaned[i + 1].start) {
-      cleaned[i].end = cleaned[i + 1].start;
-    }
-  }
-
-  // Merge French compound words (l'homme, qu'est-ce, etc.)
-  const merged = mergeCompoundWords(cleaned);
-
-  // Release context to free memory before FFmpeg
   await releaseWhisperContext();
 
   return {
-    subtitles: merged,
-    language: result.result?.language || 'unknown',
+    subtitles,
+    language: result.result?.language || 'fr',
   };
 }

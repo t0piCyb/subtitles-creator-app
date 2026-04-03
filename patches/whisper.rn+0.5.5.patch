@@ -1,0 +1,9 @@
+diff --git a/node_modules/whisper.rn/cpp/jsi/RNWhisperJSI.cpp b/node_modules/whisper.rn/cpp/jsi/RNWhisperJSI.cpp
+index 1234567..abcdefg 100644
+--- a/node_modules/whisper.rn/cpp/jsi/RNWhisperJSI.cpp
++++ b/node_modules/whisper.rn/cpp/jsi/RNWhisperJSI.cpp
+@@ -201,6 +201,7 @@
+             } else if (propName == "maxLen" && propValue.isNumber()) {
+                 params.max_len = (int)propValue.getNumber();
++                params.split_on_word = true;
+             } else if (propName == "maxContext" && propValue.isNumber()) {

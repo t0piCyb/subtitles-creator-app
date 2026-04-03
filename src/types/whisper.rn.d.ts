@@ -12,11 +12,6 @@ declare module 'whisper.rn' {
     duration?: number;
     wordThold?: number;
     translate?: boolean;
-    noContext?: boolean;
-    singleSegment?: boolean;
-    noTimestamps?: boolean;
-    audioCtx?: number;
-    speedUp?: boolean;
     temperature?: number;
     temperatureInc?: number;
     prompt?: string;
@@ -26,11 +21,6 @@ declare module 'whisper.rn' {
     text: string;
     t0: number;
     t1: number;
-    words?: Array<{
-      word: string;
-      t0: number;
-      t1: number;
-    }>;
   }
 
   export interface TranscribeResult {
@@ -61,4 +51,33 @@ declare module 'whisper.rn' {
 
   export function initWhisper(options: ContextOptions): Promise<WhisperContext>;
   export function releaseAllWhisper(): Promise<void>;
+
+  // VAD
+  export interface VadOptions {
+    threshold?: number;
+    minSpeechDurationMs?: number;
+    minSilenceDurationMs?: number;
+    maxSpeechDurationS?: number;
+    speechPadMs?: number;
+    samplesOverlap?: number;
+  }
+
+  export interface VadSegment {
+    t0: number;
+    t1: number;
+  }
+
+  export interface VadContextOptions {
+    filePath: string | number;
+    isBundleAsset?: boolean;
+    useGpu?: boolean;
+    nThreads?: number;
+  }
+
+  export class WhisperVadContext {
+    detectSpeech(filePathOrBase64: string | number, options?: VadOptions): Promise<VadSegment[]>;
+    release(): Promise<void>;
+  }
+
+  export function initWhisperVad(options: VadContextOptions): Promise<WhisperVadContext>;
 }

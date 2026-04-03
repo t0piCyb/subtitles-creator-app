@@ -46,7 +46,7 @@ export function ModelDownloader({ onDownloaded }: Props) {
           {status.resumed && (
             <Text style={styles.resumedText}>Reprise du téléchargement...</Text>
           )}
-          <ProgressBar progress={status.progress} />
+          <ProgressBar progress={status.progress} label={status.label} />
           <Text style={styles.stats}>
             {status.downloadedMB} / {status.totalMB} Mo
             {status.speed ? `  •  ${status.speed}` : ''}

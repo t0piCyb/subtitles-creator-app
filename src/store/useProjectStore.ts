@@ -56,7 +56,7 @@ export const useProjectStore = create<ProjectState>((set, get) => ({
       const current = updated[index];
       const next = updated[index + 1];
       updated[index] = {
-        text: `${current.text} ${next.text}`,
+        text: `${current.text}${next.text}`,
         start: current.start,
         end: next.end,
       };

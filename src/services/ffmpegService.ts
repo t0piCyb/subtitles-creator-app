@@ -126,12 +126,23 @@ export async function burnSubtitles(
 
   FFmpegKitConfig.enableStatisticsCallback(statisticsCallback);
 
+  // Adapt bitrate to resolution
+  const is4K = width >= 3840 || height >= 2160;
+  const isHD = width >= 1920 || height >= 1080;
+  let bitrate: string;
+  let mpeg4Quality: string;
+  if (highQuality) {
+    bitrate = is4K ? '50M' : isHD ? '20M' : '10M';
+    mpeg4Quality = '1';
+  } else {
+    bitrate = is4K ? '30M' : isHD ? '12M' : '6M';
+    mpeg4Quality = is4K ? '2' : '3';
+  }
+
   // Try encoders in order: H.264 hardware → H.264 software → mpeg4
-  const bitrate = highQuality ? '10M' : '4M';
-  const mpeg4Quality = highQuality ? '2' : '5';
   const encoders = [
     { codec: 'h264_mediacodec', opts: `-b:v ${bitrate} -pix_fmt yuv420p` },
-    { codec: 'libx264', opts: `-preset fast -crf ${highQuality ? '18' : '23'} -pix_fmt yuv420p` },
+    { codec: 'libx264', opts: `-preset fast -crf ${highQuality ? '15' : '20'} -pix_fmt yuv420p` },
     { codec: 'mpeg4', opts: `-q:v ${mpeg4Quality} -pix_fmt yuv420p` },
   ];
 

@@ -6,6 +6,6 @@ export const SUBTITLE_DEFAULTS = {
 };
 
 export const WHISPER_MODEL_URL =
-  'https://huggingface.co/ggerganov/whisper.cpp/resolve/main/ggml-base.bin';
-export const WHISPER_MODEL_FILENAME = 'ggml-base.bin';
-export const WHISPER_MODEL_SIZE_MB = 148;
+  'https://huggingface.co/ggerganov/whisper.cpp/resolve/main/ggml-small.bin';
+export const WHISPER_MODEL_FILENAME = 'ggml-small.bin';
+export const WHISPER_MODEL_SIZE_MB = 488;
